@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"sync"
 	"github.com/pkg/errors"
+	//"github.com/astaxie/beego/orm"
 )
 
 var (
@@ -50,6 +51,10 @@ type AnyOrm interface {
 
 	//ptr,[[v1,v2],[v1,v2]]
 	RawQueryValueList(sql string) (interface{}, error)
+
+	QueryCacheDelete(modelName string, cacheByValue string)
+
+	QueryByCond( queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{},err error)
 }
 
 
@@ -303,7 +308,7 @@ func queryContentByCond(orm AnyOrm, queryInfo *QueryInfo, paramMap map[string]st
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //按表和按字段清除缓存
-func (orm *BaseOrm)QueryCacheDelete(modelName string, cacheByValue string){
+func QueryCacheDelete(orm AnyOrm, modelName string, cacheByValue string){
 	gCacheModelInfoMutex.Lock()
 	defer gCacheModelInfoMutex.Unlock()
 
@@ -316,7 +321,7 @@ func (orm *BaseOrm)QueryCacheDelete(modelName string, cacheByValue string){
 	}
 }
 
-func (orm *BaseOrm) QueryByCond( queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{},err error) {
+func QueryByCond(orm AnyOrm, queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{},err error) {
 	var queryInfo *QueryInfo = nil
 
 	gQueryInfoMutex.Lock()
@@ -362,37 +367,4 @@ func (orm *BaseOrm) QueryByCond( queryId string, paramMap map[string]string, cac
 	}
 
 	return
-}
-
-//待实现接口
-func (orm *BaseOrm) CacheGet(key string) interface{}{
-	return nil
-}
-
-func (orm *BaseOrm) CachePut(key string, val interface{}, timeout time.Duration) error{
-	return nil
-}
-
-func (orm *BaseOrm) CacheDelete(key string) error{
-	return nil
-}
-
-func (orm *BaseOrm)CacheIsExist(key string) bool{
-	return false
-}
-
-func (orm *BaseOrm)CacheClearAll() error{
-	return nil
-}
-
-func (orm *BaseOrm) RawQueryCount(sql string) (int64, error){
-	return 0,nil
-}
-
-func (orm *BaseOrm) RawQueryValues(sql string) (interface{}, error){
-	return nil,nil
-}
-
-func (orm *BaseOrm) RawQueryValueList(sql string) (interface{}, error){
-	return nil,nil
 }
