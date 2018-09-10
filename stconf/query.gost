@@ -1,0 +1,193 @@
+<Root>
+
+
+<QueryInfo>
+	<Id>query_1101</Id>
+	<CacheBy>ProjectId</CacheBy>
+	<RefModelNames>OaNotice,OaNoticeLink</RefModelNames>
+	<SQL>
+	select p.Id,p.Title,date_format(p.CreateDate,'%%Y-%%m-%%d') as Cdate,p.HadView,p.NeedView-p.HadView NotView,
+	format(case when p.NeedView &gt;0 then p.HadView/(p.NeedView+0.0)*100 else 0 end,2) ViewRate,p.kind,p.isview,p.linkid  from
+	(select t.Id,t.Title,t.CreateDate,t.HadView,t.NeedView,0 kind,1 isview,'' linkid from OaNotice t
+    where 1=1 %s
+    union all
+    select t.Id,t.Title,t.CreateDate,t.HadView,t.NeedView,1 kind,l.IsView,l.Id linkid from OaNotice t,OaNoticeLink l
+    where t.Id=l.NoticeId  %s ) p
+    order by p.CreateDate desc
+
+	</SQL>
+
+	<BindParams>
+        <BindParamGroup ConnSymbol="and">
+        			<BindParam ConnSymbol="and">
+        				<FieldExpress> t.ProjectId='%s' </FieldExpress>
+        				<FormName>ProjectId</FormName>
+        			</BindParam>
+        			<BindParam ConnSymbol="and">
+                        <FieldExpress> t.CreateUserId='%s' </FieldExpress>
+                        <FormName>UserId</FormName>
+                    </BindParam>
+        		</BindParamGroup>
+	</BindParams>
+	<BindParams>
+            <BindParamGroup ConnSymbol="and">
+            			<BindParam ConnSymbol="and">
+            				<FieldExpress>  t.ProjectId='%s' </FieldExpress>
+            				<FormName>ProjectId</FormName>
+            			</BindParam>
+            			<BindParam ConnSymbol="and">
+                            <FieldExpress>  l.UserId ='%s' </FieldExpress>
+                            <FormName>UserId</FormName>
+                        </BindParam>
+            		</BindParamGroup>
+    	</BindParams>
+
+	<Remark>
+
+	</Remark>
+</QueryInfo>
+
+<QueryInfo>
+	<Id>query_1102</Id>
+	<CacheBy>ProjectId</CacheBy>
+	<RefModelNames>OaNoticeComment</RefModelNames>
+	<SQL>
+select t.Id,t.UserId,u.PictureId,u.RealName userName,t.Content from OaNoticeComment t
+left join sysuser u on t.userId=u.id
+where 1=1 %s
+order by t.createDate desc
+
+	</SQL>
+
+<BindParams>
+    <BindParamGroup ConnSymbol="and">
+                <BindParam ConnSymbol="and">
+                    <FieldExpress> t.noticeId='%s' </FieldExpress>
+                    <FormName>NoticeId</FormName>
+                </BindParam>
+            </BindParamGroup>
+</BindParams>
+<Remark>
+评论 req + projectId
+</Remark>
+</QueryInfo>
+
+<QueryInfo>
+	<Id>query_1103</Id>
+	<CacheBy>ProjectId</CacheBy>
+	<RefModelNames>OaNoticeLink</RefModelNames>
+	<SQL>
+
+select t.id,t.userId,u.PictureId,u.RealName from OaNoticeLink t
+left join sysuser u on t.UserId=u.Id
+ where   1=1  %s
+ order by u.RealName
+
+	</SQL>
+
+<BindParams>
+    <BindParamGroup ConnSymbol="and">
+                <BindParam ConnSymbol="and">
+                    <FieldExpress> t.noticeId='%s' </FieldExpress>
+                    <FormName>NoticeId</FormName>
+                </BindParam>
+                <BindParam ConnSymbol="and">
+                    <FieldExpress> t.isView=%s </FieldExpress>
+                    <FormName>IsView</FormName>
+                </BindParam>
+            </BindParamGroup>
+</BindParams>
+<Remark>
+req + projectId
+</Remark>
+</QueryInfo>
+
+
+
+<QueryInfo>
+	<Id>query_1121</Id>
+	<CacheBy>ProjectId</CacheBy>
+	<RefModelNames>OaTask</RefModelNames>
+	<SQL>
+           select t.Id,t.Title,DATE_FORMAT(t.ExpireDate,'%%Y-%%m-%%dT%%T') ExpireTime, DATE_FORMAT(t.CreateDate,'%%m-%%d') CreateDate,
+           DATE_FORMAT(t.ExpireDate,'%%m-%%d') ExpireDate,t.Priority,u.RealName,0 kind from OaTask t
+           left join sysuser u on t.CreateUserId = u.Id
+               where 1=1  %s  order by t.CreateDate desc
+	</SQL>
+
+	<BindParams>
+        <BindParamGroup ConnSymbol="and">
+                    <BindParam ConnSymbol="and">
+                        <FieldExpress>  t.ProjectId='%s' </FieldExpress>
+                        <FormName>ProjectId</FormName>
+                    </BindParam>
+                    <BindParam ConnSymbol="and">
+                        <FieldExpress>  t.CreateUserId ='%s' </FieldExpress>
+                        <FormName>UserId</FormName>
+                    </BindParam>
+                </BindParamGroup>
+    </BindParams>
+	<Remark>
+我发布的
+	</Remark>
+</QueryInfo>
+
+<QueryInfo>
+	<Id>query_1122</Id>
+	<CacheBy>ProjectId</CacheBy>
+	<RefModelNames>OaTask,OaTaskLink</RefModelNames>
+	<SQL>
+           select t.Id,t.Title,DATE_FORMAT(t.ExpireDate,'%%Y-%%m-%%dT%%T') ExpireTime, DATE_FORMAT(t.CreateDate,'%%m-%%d') CreateDate,
+                      DATE_FORMAT(t.ExpireDate,'%%m-%%d') ExpireDate,t.Priority,u.RealName,0 kind from OaTaskLink l,OaTask t
+                      left join sysuser u on t.CreateUserId = u.Id
+                          where t.Id=l.TaskId and l.Kind=0  %s order by t.CreateDate desc
+	</SQL>
+
+	<BindParams>
+        <BindParamGroup ConnSymbol="and">
+                    <BindParam ConnSymbol="and">
+                        <FieldExpress>  t.ProjectId='%s' </FieldExpress>
+                        <FormName>ProjectId</FormName>
+                    </BindParam>
+                    <BindParam ConnSymbol="and">
+                        <FieldExpress>  l.UserId ='%s' </FieldExpress>
+                        <FormName>UserId</FormName>
+                    </BindParam>
+                </BindParamGroup>
+    </BindParams>
+	<Remark>
+我执行的
+	</Remark>
+</QueryInfo>
+
+
+<QueryInfo>
+	<Id>query_1123</Id>
+	<CacheBy>ProjectId</CacheBy>
+	<RefModelNames>OaTask,OaTaskLink</RefModelNames>
+	<SQL>
+           select t.Id,t.Title,DATE_FORMAT(t.ExpireDate,'%%Y-%%m-%%dT%%T') ExpireTime, DATE_FORMAT(t.CreateDate,'%%m-%%d') CreateDate,
+                                 DATE_FORMAT(t.ExpireDate,'%%m-%%d') ExpireDate,t.Priority,u.RealName,1 kind from OaTaskLink l,OaTask t
+                                 left join sysuser u on t.CreateUserId = u.Id
+                                     where t.Id=l.TaskId and l.Kind=1  %s order by t.CreateDate desc
+	</SQL>
+
+	<BindParams>
+        <BindParamGroup ConnSymbol="and">
+                    <BindParam ConnSymbol="and">
+                        <FieldExpress>  t.ProjectId='%s' </FieldExpress>
+                        <FormName>ProjectId</FormName>
+                    </BindParam>
+                    <BindParam ConnSymbol="and">
+                        <FieldExpress>  l.UserId ='%s' </FieldExpress>
+                        <FormName>UserId</FormName>
+                    </BindParam>
+                </BindParamGroup>
+    </BindParams>
+	<Remark>
+我督办的
+	</Remark>
+</QueryInfo>
+
+
+</Root>

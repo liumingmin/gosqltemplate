@@ -286,6 +286,8 @@ func queryContentByCond(orm AnyOrm, queryInfo *QueryInfo, paramMap map[string]st
 		if pStart == 0{
 			cntSql := " select count(*) from ("+sqlstr+") __t__"
 			totalSize,err = orm.RawQueryCount(cntSql)
+
+			fmt.Println(cntSql)
 		}
 		sqlstr += fmt.Sprintf(" limit %d,%d ",pStart,pLimit)
 	}
@@ -293,6 +295,7 @@ func queryContentByCond(orm AnyOrm, queryInfo *QueryInfo, paramMap map[string]st
 	qr := &QueryResult{}
 	qr.TotalCount = totalSize
 
+	fmt.Println(sqlstr)
 	qr.ResultList,err = orm.RawQueryValues(sqlstr)
 
 	return qr,err
