@@ -6,6 +6,7 @@
 	<CacheBy>ProjectId</CacheBy>
 	<RefModelNames>OaNotice,OaNoticeLink</RefModelNames>
 	<SQL>
+	   <![CDATA[
 	select p.Id,p.Title,date_format(p.CreateDate,'%%Y-%%m-%%d') as Cdate,p.HadView,p.NeedView-p.HadView NotView,
 	format(case when p.NeedView &gt;0 then p.HadView/(p.NeedView+0.0)*100 else 0 end,2) ViewRate,p.kind,p.isview,p.linkid  from
 	(select t.Id,t.Title,t.CreateDate,t.HadView,t.NeedView,0 kind,1 isview,'' linkid from OaNotice t
@@ -14,7 +15,7 @@
     select t.Id,t.Title,t.CreateDate,t.HadView,t.NeedView,1 kind,l.IsView,l.Id linkid from OaNotice t,OaNoticeLink l
     where t.Id=l.NoticeId  %s ) p
     order by p.CreateDate desc
-
+]]>
 	</SQL>
 
 	<BindParams>
@@ -52,11 +53,12 @@
 	<CacheBy>ProjectId</CacheBy>
 	<RefModelNames>OaNoticeComment</RefModelNames>
 	<SQL>
+<![CDATA[
 select t.Id,t.UserId,u.PictureId,u.RealName userName,t.Content from OaNoticeComment t
 left join sysuser u on t.userId=u.id
 where 1=1 %s
 order by t.createDate desc
-
+]]>
 	</SQL>
 
 <BindParams>
@@ -77,12 +79,12 @@ order by t.createDate desc
 	<CacheBy>ProjectId</CacheBy>
 	<RefModelNames>OaNoticeLink</RefModelNames>
 	<SQL>
-
+<![CDATA[
 select t.id,t.userId,u.PictureId,u.RealName from OaNoticeLink t
 left join sysuser u on t.UserId=u.Id
  where   1=1  %s
  order by u.RealName
-
+]]>
 	</SQL>
 
 <BindParams>
@@ -109,10 +111,12 @@ req + projectId
 	<CacheBy>ProjectId</CacheBy>
 	<RefModelNames>OaTask</RefModelNames>
 	<SQL>
+	<![CDATA[
            select t.Id,t.Title,DATE_FORMAT(t.ExpireDate,'%%Y-%%m-%%dT%%T') ExpireTime, DATE_FORMAT(t.CreateDate,'%%m-%%d') CreateDate,
            DATE_FORMAT(t.ExpireDate,'%%m-%%d') ExpireDate,t.Priority,u.RealName,0 kind from OaTask t
            left join sysuser u on t.CreateUserId = u.Id
                where 1=1  %s  order by t.CreateDate desc
+     ]]>
 	</SQL>
 
 	<BindParams>
@@ -137,10 +141,12 @@ req + projectId
 	<CacheBy>ProjectId</CacheBy>
 	<RefModelNames>OaTask,OaTaskLink</RefModelNames>
 	<SQL>
+	<![CDATA[
            select t.Id,t.Title,DATE_FORMAT(t.ExpireDate,'%%Y-%%m-%%dT%%T') ExpireTime, DATE_FORMAT(t.CreateDate,'%%m-%%d') CreateDate,
                       DATE_FORMAT(t.ExpireDate,'%%m-%%d') ExpireDate,t.Priority,u.RealName,0 kind from OaTaskLink l,OaTask t
                       left join sysuser u on t.CreateUserId = u.Id
                           where t.Id=l.TaskId and l.Kind=0  %s order by t.CreateDate desc
+      ]]>
 	</SQL>
 
 	<BindParams>
@@ -166,10 +172,12 @@ req + projectId
 	<CacheBy>ProjectId</CacheBy>
 	<RefModelNames>OaTask,OaTaskLink</RefModelNames>
 	<SQL>
+	<![CDATA[
            select t.Id,t.Title,DATE_FORMAT(t.ExpireDate,'%%Y-%%m-%%dT%%T') ExpireTime, DATE_FORMAT(t.CreateDate,'%%m-%%d') CreateDate,
                                  DATE_FORMAT(t.ExpireDate,'%%m-%%d') ExpireDate,t.Priority,u.RealName,1 kind from OaTaskLink l,OaTask t
                                  left join sysuser u on t.CreateUserId = u.Id
                                      where t.Id=l.TaskId and l.Kind=1  %s order by t.CreateDate desc
+     ]]>
 	</SQL>
 
 	<BindParams>
