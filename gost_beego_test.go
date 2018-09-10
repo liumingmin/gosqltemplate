@@ -16,7 +16,7 @@ func TestBeegoOrm_RawQueryValues(t *testing.T) {
 	param3["UserId"]="ddddd"
 	param3["__start"]="10"
 	param3["__limit"]="20"
-	v,err := borm.QueryByCond("query_1101",param3,60*time.Second)
+	v,err := borm.QueryValuesByMap("query_1101",param3,60*time.Second)
 
 	fmt.Println(v,err)
 }

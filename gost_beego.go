@@ -11,8 +11,6 @@ import (
 )
 
 type BeegoOrm struct{
-	BaseOrm
-
 	MemCacheMgr cache.Cache
 	Ormer orm.Ormer
 }
@@ -86,8 +84,10 @@ func (borm *BeegoOrm) QueryCacheDelete(modelName string, cacheByValue string){
 	QueryCacheDelete(borm,modelName,cacheByValue)
 }
 
-func (borm *BeegoOrm)  QueryByCond( queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{},err error){
-	return QueryByCond(borm,queryId,paramMap,cacheTime)
+func (borm *BeegoOrm)  QueryValuesByMap( queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{},err error){
+	return QueryValuesWrap(borm,false,queryId,paramMap,cacheTime)
 }
 
-
+func (borm *BeegoOrm) QueryValueListByMap(queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{}, err error){
+	return QueryValuesWrap(borm,true,queryId,paramMap,cacheTime)
+}
