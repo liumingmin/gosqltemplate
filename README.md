@@ -6,7 +6,24 @@ A golang sql template ,independent of database, small&amp; light.
 *2、支持分页，支持到表级别、字段级别缓存。
 *3、非侵入式，本库不提供缓存库、ORM库，可方便嵌入已有项目或开发精简的微服务。
 
-###1.编写模板SQL
+#执行查询
+
+```Go
+borm := &gost.BeegoOrm{}
+borm.MemCacheMgr, _ = cache.NewCache("memory", `{"interval":60}`)
+borm.Ormer = gost.NewOrm("default")
+
+param3 := make(map[string]string)
+param3["UserId"]="ddddd"
+param3["__start"]="10"
+param3["__limit"]="20"
+v,err := borm.QueryValuesByMap("query_1101",param3,60*time.Second)
+
+fmt.Println(v,err)
+```
+
+
+##1.编写模板SQL
 ```SQL
   select p.Id,p.Title,date_format(p.CreateDate,'%%Y-%%m-%%d') as Cdate,p.HadView,p.NeedView-p.HadView NotView,
 	format(case when p.NeedView &gt;0 then p.HadView/(p.NeedView+0.0)*100 else 0 end,2) ViewRate,p.kind,p.isview,p.linkid  from
@@ -17,7 +34,7 @@ A golang sql template ,independent of database, small&amp; light.
     where t.Id=l.NoticeId  %s ) p
     order by p.CreateDate desc
 ```
-###2.配置查询条件，BindParam对应一个SQL条件，AND 或者OR，通过FormName从MAP中取到对应字段值拼到字段表达式FieldExpress中，形成一个SQL条件，然后通过BindParamGroup为SQL子句中的一个条件组，多个OR和AND之间需要使用条件组来组合例如 (Code like '%111%' or Name like '%2222%') and Pid='' ，最后BindParams将会拼成一个SQL子句对应模板SQL中按序出现的 %s。
+##2.配置查询条件，BindParam对应一个SQL条件，AND 或者OR，通过FormName从MAP中取到对应字段值拼到字段表达式FieldExpress中，形成一个SQL条件，然后通过BindParamGroup为SQL子句中的一个条件组，多个OR和AND之间需要使用条件组来组合例如 (Code like '%111%' or Name like '%2222%') and Pid='' ，最后BindParams将会拼成一个SQL子句对应模板SQL中按序出现的 %s。
 ```XML
 <BindParams>
         <BindParamGroup ConnSymbol="and">
