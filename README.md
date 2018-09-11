@@ -1,12 +1,12 @@
 # gosqltemplate
 A golang sql template ,independent of database, small&amp; light.
 简单的非侵入的sql模板库
-## 功能特性
+### 功能特性
 * 1、灵活的根据xml配置SQL模板动态生成SQL执行。
 * 2、支持分页，支持到表级别、字段级别缓存。
 * 3、非侵入式，本库不提供缓存库、ORM库，可方便嵌入已有项目或开发精简的微服务。
 
-## 执行查询
+### 执行查询
 
 ```Go
 borm := &gost.BeegoOrm{}
@@ -23,7 +23,7 @@ fmt.Println(v,err)
 ```
 
 
-## 1.编写模板SQL
+### 1.编写模板SQL
 ```SQL
   select p.Id,p.Title,date_format(p.CreateDate,'%%Y-%%m-%%d') as Cdate,p.HadView,p.NeedView-p.HadView NotView,
 	format(case when p.NeedView &gt;0 then p.HadView/(p.NeedView+0.0)*100 else 0 end,2) ViewRate,p.kind,p.isview,p.linkid  from
@@ -34,7 +34,15 @@ fmt.Println(v,err)
     where t.Id=l.NoticeId  %s ) p
     order by p.CreateDate desc
 ```
-## 2.配置查询条件，BindParam对应一个SQL条件，AND 或者OR，通过FormName从MAP中取到对应字段值拼到字段表达式FieldExpress中，形成一个SQL条件，然后通过BindParamGroup为SQL子句中的一个条件组，多个OR和AND之间需要使用条件组来组合例如 (Code like '%111%' or Name like '%2222%') and Pid='' ，最后BindParams将会拼成一个SQL子句对应模板SQL中按序出现的 %s。
+
+### 2、配置SQL模板信息，在需要缓存表名+字段值来缓存和清除缓存数据，RefModelNames为该SQL模板所涉及到的表名。但这些表其中任意一个数据被修改，需要调用QueryCacheDelete接口，传入表名。CacheBy指定缓存到字段级别的字段名，配置后，当任意一表的该字段值分组数据被修改，传入QueryCacheDelete，如果不适用到字段，第二个值设为"".
+```XML
+<Id>query_1101</Id>
+<CacheBy>ProjectId</CacheBy>
+<RefModelNames>OaNotice,OaNoticeLink</RefModelNames>
+```
+
+### 3.配置查询条件，BindParam对应一个SQL条件，AND 或者OR，通过FormName从MAP中取到对应字段值拼到字段表达式FieldExpress中，形成一个SQL条件，然后通过BindParamGroup为SQL子句中的一个条件组，多个OR和AND之间需要使用条件组来组合例如 (Code like '%111%' or Name like '%2222%') and Pid='' ，最后BindParams将会拼成一个SQL子句对应模板SQL中按序出现的 %s。
 ```XML
 <BindParams>
         <BindParamGroup ConnSymbol="and">
@@ -61,3 +69,5 @@ fmt.Println(v,err)
             		</BindParamGroup>
     	</BindParams>
 ```
+
+
