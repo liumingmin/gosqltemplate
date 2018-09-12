@@ -8,6 +8,7 @@ import (
 	"github.com/astaxie/beego/cache"
 
 	_ "github.com/go-sql-driver/mysql"
+	"fmt"
 )
 
 type BeegoOrm struct{
@@ -41,53 +42,67 @@ func NewOrm(dbname string)orm.Ormer{
 	return result
 }
 
-func (borm *BeegoOrm) CacheGet(key string) interface{}{
-	return borm.MemCacheMgr.Get(key)
+func (borm *BeegoOrm) QueryCacheDelete(modelName string, cacheByValue string){
+	CacheDeleteWrap(borm,modelName,cacheByValue)
 }
 
-func (borm *BeegoOrm) CachePut(key string, val interface{}, timeout time.Duration) error{
-	return borm.MemCacheMgr.Put(key,val,timeout)
+func (borm *BeegoOrm)  QueryValuesByMap( queryId string, paramMap map[string]string, cacheTime time.Duration) (entities *QueryResult,err error){
+	return QueryValuesWrap(borm,false,queryId,paramMap,cacheTime)
 }
 
-func (borm *BeegoOrm) CacheDelete(key string) error{
-	return borm.MemCacheMgr.Delete(key)
+func (borm *BeegoOrm) QueryValueListByMap(queryId string, paramMap map[string]string, cacheTime time.Duration) (entities *QueryResult, err error){
+	return QueryValuesWrap(borm,true,queryId,paramMap,cacheTime)
 }
 
-func (borm *BeegoOrm)CacheIsExist(key string) bool{
-	return borm.MemCacheMgr.IsExist(key)
+func (borm *BeegoOrm)  LogInfo(format string, a ...interface{}){
+	fmt.Printf(format+"\n", a...)
+}
+
+func (borm *BeegoOrm)  LogDebug(format string, a ...interface{}){
+	fmt.Printf(format+"\n", a...)
+}
+
+func (borm *BeegoOrm)  LogError(format string, a ...interface{}){
+	fmt.Printf(format+"\n", a...)
 }
 
 func (borm *BeegoOrm)CacheClearAll() error{
 	return borm.MemCacheMgr.ClearAll()
 }
 
-func (borm *BeegoOrm) RawQueryCount(sql string) (totalCount int64,err error){
+func (borm *BeegoOrm) cacheGet(key string) interface{}{
+	return borm.MemCacheMgr.Get(key)
+}
+
+func (borm *BeegoOrm) cachePut(key string, val interface{}, timeout time.Duration) error{
+	return borm.MemCacheMgr.Put(key,val,timeout)
+}
+
+func (borm *BeegoOrm) cacheDelete(key string) error{
+	return borm.MemCacheMgr.Delete(key)
+}
+
+func (borm *BeegoOrm)cacheIsExist(key string) bool{
+	return borm.MemCacheMgr.IsExist(key)
+}
+
+
+func (borm *BeegoOrm) rawQueryCount(sql string) (totalCount int64,err error){
 	err = borm.Ormer.Raw(sql).QueryRow(&totalCount)
 	return
 }
 
-func (borm *BeegoOrm) RawQueryValues(sql string) (retvalues interface{},err error){
+func (borm *BeegoOrm) rawQueryValues(sql string) (retvalues interface{},err error){
 	var values []orm.Params
 	_,err = borm.Ormer.Raw(sql).Values(&values)
 	retvalues = values
 	return
 }
 
-func (borm *BeegoOrm) RawQueryValueList(sql string) (retvalues interface{},err error){
+func (borm *BeegoOrm) rawQueryValueList(sql string) (retvalues interface{},err error){
 	var lists []orm.ParamsList
 	_, err =  borm.Ormer.Raw(sql).ValuesList(&lists)
 	retvalues = lists
 	return
 }
 
-func (borm *BeegoOrm) QueryCacheDelete(modelName string, cacheByValue string){
-	QueryCacheDelete(borm,modelName,cacheByValue)
-}
-
-func (borm *BeegoOrm)  QueryValuesByMap( queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{},err error){
-	return QueryValuesWrap(borm,false,queryId,paramMap,cacheTime)
-}
-
-func (borm *BeegoOrm) QueryValueListByMap(queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{}, err error){
-	return QueryValuesWrap(borm,true,queryId,paramMap,cacheTime)
-}

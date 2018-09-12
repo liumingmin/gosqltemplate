@@ -4,8 +4,8 @@ import (
 	"crypto/md5"
 	"encoding/base64"
 	"encoding/xml"
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,15 +15,16 @@ import (
 	"strings"
 	"sync"
 	"time"
-	//"github.com/astaxie/beego/orm"
 )
 
 var (
-	sqlTemplateDir         string
-	globeQueryInfos        = make(map[string]*QueryInfo)
-	gQueryInfoMutex        = new(sync.Mutex)
-	gCacheModelInfoMutex   = new(sync.Mutex)
-	gModelNameCondCacheMap = make(map[string](map[string]bool))
+	gSqlTemplateDir string
+
+	gQueryInfos     = make(map[string]*QueryInfo)
+	gQueryInfoMutex = new(sync.Mutex)
+
+	gTableAndKeyCacheMap      = make(map[string](map[string]bool))
+	gTableAndKeyCacheMapMutex = new(sync.Mutex)
 )
 
 func init() {
@@ -33,30 +34,37 @@ func init() {
 }
 
 type AnyOrm interface {
-	CacheGet(key string) interface{}
-	// set cached value with key and expire time.
-	CachePut(key string, val interface{}, timeout time.Duration) error
-	// delete cached value by key.
-	CacheDelete(key string) error
-	// check if cached value exists or not.
-	CacheIsExist(key string) bool
+	QueryCacheDelete(modelName string, cacheByValue string)
+
+	QueryValuesByMap(queryId string, paramMap map[string]string, cacheTime time.Duration) (entities *QueryResult, err error)
+
+	QueryValueListByMap(queryId string, paramMap map[string]string, cacheTime time.Duration) (entities *QueryResult, err error)
+
 	// clear all cache.
 	CacheClearAll() error
 
+	LogInfo(format string, a ...interface{})
+
+	LogDebug(format string, a ...interface{})
+
+	LogError(format string, a ...interface{})
+
+	cacheGet(key string) interface{}
+	// set cached value with key and expire time.
+	cachePut(key string, val interface{}, timeout time.Duration) error
+	// delete cached value by key.
+	cacheDelete(key string) error
+	// check if cached value exists or not.
+	cacheIsExist(key string) bool
+
 	//
-	RawQueryCount(sql string) (int64, error)
+	rawQueryCount(sql string) (int64, error)
 
 	//ptr,[{"f1":""},{"f2":""}]
-	RawQueryValues(sql string) (interface{}, error)
+	rawQueryValues(sql string) (interface{}, error)
 
 	//ptr,[[v1,v2],[v1,v2]]
-	RawQueryValueList(sql string) (interface{}, error)
-
-	QueryCacheDelete(modelName string, cacheByValue string)
-
-	QueryValuesByMap(queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{}, err error)
-
-	QueryValueListByMap(queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{}, err error)
+	rawQueryValueList(sql string) (interface{}, error)
 }
 
 type QueryResult struct {
@@ -96,18 +104,13 @@ type BindParams struct {
 	RawExpress      string           `xml:"RawExpress,attr"`
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-func logWrap(format string, a ...interface{}) {
-	fmt.Printf(format+"\n", a...)
-}
-
+////////////////////////////////////////////////////////////////////////////////////////////////////
 func SetSqlTemplateDir(sqlTmpDir string) {
-	sqlTemplateDir = sqlTmpDir
-	if strings.TrimSpace(sqlTemplateDir) == "" {
+	gSqlTemplateDir = sqlTmpDir
+	if strings.TrimSpace(gSqlTemplateDir) == "" {
 		file, _ := exec.LookPath(os.Args[0])
 		fdir := filepath.Dir(file)
-		sqlTemplateDir = filepath.Join(fdir, "stconf")
+		gSqlTemplateDir = filepath.Join(fdir, "stconf")
 	}
 }
 
@@ -133,11 +136,11 @@ func deSqlInject(paramVal string) string {
 func getStConfFile() []string {
 	files := make([]string, 0, 10)
 
-	if !PathExist(sqlTemplateDir) {
+	if !PathExist(gSqlTemplateDir) {
 		return files
 	}
 
-	filepath.Walk(sqlTemplateDir, func(filename string, fi os.FileInfo, err error) error { //遍历目录
+	filepath.Walk(gSqlTemplateDir, func(filename string, fi os.FileInfo, err error) error { //遍历目录
 		if fi.IsDir() { // 忽略目录
 			return nil
 		}
@@ -152,41 +155,45 @@ func getStConfFile() []string {
 	return files
 }
 
+func logStd(format string, a ...interface{}) {
+	fmt.Printf(format+"\n", a...)
+}
+
 func LoadStConfFiles() {
-	logWrap("Begin load query info,from :%v", sqlTemplateDir)
+	logStd("Begin load query info,from :%v", gSqlTemplateDir)
 
 	stFiles := getStConfFile()
 	for _, stFile := range stFiles {
 		content, err := ioutil.ReadFile(stFile)
 		if err != nil {
-			logWrap("%v", err)
+			logStd("%v", err)
 			continue
 		}
 
 		var queryInfoConf QueryInfoConf
 		err = xml.Unmarshal(content, &queryInfoConf)
 		if err != nil {
-			logWrap("%v", err)
+			logStd("%v", err)
 			continue
 		}
 
 		if len(queryInfoConf.QueryInfos) == 0 {
-			logWrap("no query infos,file: %v", stFile)
+			logStd("no query infos,file: %v", stFile)
 			continue
 		}
 
 		for _, queryInfo := range queryInfoConf.QueryInfos {
-			if _, isOk := globeQueryInfos[queryInfo.Id]; isOk {
-				logWrap(" query info duplicate, will override,id: %v", queryInfo.Id)
+			if _, isOk := gQueryInfos[queryInfo.Id]; isOk {
+				logStd(" query info duplicate, will override,id: %v", queryInfo.Id)
 			}
-			globeQueryInfos[queryInfo.Id] = &queryInfo
+			gQueryInfos[queryInfo.Id] = &queryInfo
 		}
 	}
 
-	logWrap("End load query info,count :%v", len(globeQueryInfos))
+	logStd("End load query info,count :%v", len(gQueryInfos))
 }
 
-func genQuerySql(queryInfo *QueryInfo, paramMap map[string]string) (string, bool) {
+func genQuerySql(orm AnyOrm, queryInfo *QueryInfo, paramMap map[string]string) (string, bool) {
 	if len(queryInfo.BindParams) == 0 {
 		return queryInfo.SQL, true
 	}
@@ -239,37 +246,39 @@ func genQuerySql(queryInfo *QueryInfo, paramMap map[string]string) (string, bool
 
 	sqlstr := fmt.Sprintf(queryInfo.SQL, searchapis...)
 
+	orm.LogDebug("Gen sql %v", sqlstr)
+
 	return sqlstr, true
 }
 
 //queryId用来查出关联了那些表名RefModelNames, cacheByValue 需要按字段时，对应字段的值，为空则是缓存到表
 func cachePut(orm AnyOrm, modelNames []string, cacheByValue string, condKey string, val interface{}, timeout time.Duration) error {
-	gCacheModelInfoMutex.Lock()
+	gTableAndKeyCacheMapMutex.Lock()
 
 	for _, modelName := range modelNames {
 		if modelName == "" {
 			continue
 		}
 
-		conds, isok := gModelNameCondCacheMap[modelName+cacheByValue]
+		conds, isok := gTableAndKeyCacheMap[modelName+cacheByValue]
 		if !isok {
 			conds = make(map[string]bool)
 		}
 
 		conds[condKey] = true
-		gModelNameCondCacheMap[modelName+cacheByValue] = conds
+		gTableAndKeyCacheMap[modelName+cacheByValue] = conds
 	}
 
-	gCacheModelInfoMutex.Unlock()
+	gTableAndKeyCacheMapMutex.Unlock()
 
 	if timeout == 0 {
 		timeout = 60 * time.Second
 	}
-	return orm.CachePut(condKey, val, 60)
+	return orm.cachePut(condKey, val, 60)
 }
 
 func queryContentByCond(orm AnyOrm, retList bool, queryInfo *QueryInfo, paramMap map[string]string) (*QueryResult, error) {
-	sqlstr, _ := genQuerySql(queryInfo, paramMap)
+	sqlstr, _ := genQuerySql(orm, queryInfo, paramMap)
 	var err error = nil
 	var totalSize int64 = 0
 
@@ -289,7 +298,7 @@ func queryContentByCond(orm AnyOrm, retList bool, queryInfo *QueryInfo, paramMap
 	if pLimit > 0 {
 		if pStart == 0 {
 			cntSql := " select count(*) from (" + sqlstr + ") __t__"
-			totalSize, err = orm.RawQueryCount(cntSql)
+			totalSize, err = orm.rawQueryCount(cntSql)
 
 			fmt.Println(cntSql)
 		}
@@ -302,9 +311,9 @@ func queryContentByCond(orm AnyOrm, retList bool, queryInfo *QueryInfo, paramMap
 	//fmt.Println(sqlstr)
 
 	if retList {
-		qr.ResultList, err = orm.RawQueryValueList(sqlstr)
+		qr.ResultList, err = orm.rawQueryValueList(sqlstr)
 	} else {
-		qr.ResultList, err = orm.RawQueryValues(sqlstr)
+		qr.ResultList, err = orm.rawQueryValues(sqlstr)
 	}
 
 	return qr, err
@@ -312,24 +321,24 @@ func queryContentByCond(orm AnyOrm, retList bool, queryInfo *QueryInfo, paramMap
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //按表和按字段清除缓存
-func QueryCacheDelete(orm AnyOrm, modelName string, cacheByValue string) {
-	gCacheModelInfoMutex.Lock()
-	defer gCacheModelInfoMutex.Unlock()
+func CacheDeleteWrap(orm AnyOrm, modelName string, cacheByValue string) {
+	gTableAndKeyCacheMapMutex.Lock()
+	defer gTableAndKeyCacheMapMutex.Unlock()
 
-	if conds, isok := gModelNameCondCacheMap[modelName+cacheByValue]; isok {
+	if conds, isok := gTableAndKeyCacheMap[modelName+cacheByValue]; isok {
 		for cond := range conds {
-			orm.CacheDelete(cond)
+			orm.cacheDelete(cond)
 		}
 
-		//delete(gModelNameCondCacheMap,modelName+cacheByValue)
+		//delete(gTableAndKeyCacheMap,modelName+cacheByValue)
 	}
 }
 
-func QueryValuesWrap(orm AnyOrm, retList bool, queryId string, paramMap map[string]string, cacheTime time.Duration) (entities interface{}, err error) {
+func QueryValuesWrap(orm AnyOrm, retList bool, queryId string, paramMap map[string]string, cacheTime time.Duration) (entities *QueryResult, err error) {
 	var queryInfo *QueryInfo = nil
 
 	gQueryInfoMutex.Lock()
-	if v, isOk := globeQueryInfos[queryId]; isOk {
+	if v, isOk := gQueryInfos[queryId]; isOk {
 		queryInfo = v
 	}
 	gQueryInfoMutex.Unlock()
@@ -348,8 +357,8 @@ func QueryValuesWrap(orm AnyOrm, retList bool, queryId string, paramMap map[stri
 		condKey := queryId + "-" + strings.Join(condArray, "-")
 
 		md5key := Md5Hash(condKey)
-		if orm.CacheIsExist(md5key) {
-			entities = orm.CacheGet(md5key)
+		if orm.cacheIsExist(md5key) {
+			entities = orm.cacheGet(md5key).(*QueryResult)
 		}
 
 		if entities == nil {
